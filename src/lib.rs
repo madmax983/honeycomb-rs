@@ -5,6 +5,16 @@
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
+// Allow some overly pedantic clippy lints for practical code
+#![allow(clippy::cast_possible_truncation)] // Date math uses intentional truncation
+#![allow(clippy::cast_possible_wrap)] // Date algorithms use wrap-around behavior
+#![allow(clippy::cast_sign_loss)] // Date conversions are mathematically sound
+#![allow(clippy::cast_precision_loss)] // Duration math with f64 is acceptable
+#![allow(clippy::must_use_candidate)] // Not all getters need must_use
+#![allow(clippy::missing_const_for_fn)] // Const fn everywhere is overly restrictive
+#![allow(clippy::struct_field_names)] // http_client in Client is fine
+#![allow(clippy::significant_drop_tightening)] // Lock scoping is intentional
+#![allow(clippy::items_after_statements)] // Constants after code is readable
 
 mod batch;
 mod client;

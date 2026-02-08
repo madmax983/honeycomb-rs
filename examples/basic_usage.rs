@@ -5,7 +5,7 @@
 //! - Create and send events with various field types
 //! - Flush the buffer to ensure delivery
 //!
-//! Run with: cargo run --example basic_usage --features http
+//! Run with: cargo run --example `basic_usage` --features http
 
 use honeycomb_rs::{Client, Config, Event, Options, TransmissionOptions};
 use std::time::Duration;

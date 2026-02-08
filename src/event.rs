@@ -199,7 +199,7 @@ impl Event {
     /// Generate a hash of the event content for sampling purposes.
     ///
     /// This implementation:
-    /// - Sorts keys for deterministic hashing (HashMap iteration is non-deterministic)
+    /// - Sorts keys for deterministic hashing (`HashMap` iteration is non-deterministic)
     /// - Uses efficient value hashing without string allocation
     fn content_hash(&self) -> u64 {
         use std::collections::hash_map::DefaultHasher;
@@ -275,11 +275,11 @@ impl Event {
 fn days_to_ymd(days: u64) -> (i32, u32, u32) {
     // Algorithm based on Howard Hinnant's date algorithms
     // http://howardhinnant.github.io/date_algorithms.html
-    let z = days as i64 + 719468;
-    let era = if z >= 0 { z } else { z - 146096 } / 146097;
-    let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe as i64 + era * 400;
+    let z = days as i64 + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = i64::from(yoe) + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
     let d = doy - (153 * mp + 2) / 5 + 1;
@@ -288,7 +288,7 @@ fn days_to_ymd(days: u64) -> (i32, u32, u32) {
     (y as i32, m, d)
 }
 
-/// Trait for types that can hold fields (compatible with libhoney's FieldHolder).
+/// Trait for types that can hold fields (compatible with libhoney's `FieldHolder`).
 ///
 /// This trait is provided for API compatibility and may not be used directly in tests.
 #[allow(dead_code)]
@@ -302,11 +302,11 @@ pub trait FieldHolder {
 
 impl FieldHolder for Event {
     fn add_field(&mut self, key: impl Into<String>, value: impl Into<Value>) {
-        Event::add_field(self, key, value);
+        Self::add_field(self, key, value);
     }
 
     fn add<T: Serialize>(&mut self, value: &T) -> Result<(), crate::error::Error> {
-        Event::add(self, value)
+        Self::add(self, value)
     }
 }
 
@@ -338,8 +338,8 @@ mod tests {
 
     #[test]
     fn test_event_with_timestamp() {
-        // 1705314600 = 2024-01-15T10:30:00Z (verified)
-        let ts = UNIX_EPOCH + Duration::from_secs(1705314600);
+        // 1_705_314_600 = 2024-01-15T10:30:00Z (verified)
+        let ts = UNIX_EPOCH + Duration::from_secs(1_705_314_600);
         let event = Event::with_timestamp(ts);
         assert!(event.timestamp.contains("2024-01-15"));
         assert!(event.timestamp.contains("10:30:00"));
@@ -560,8 +560,8 @@ mod tests {
 
     #[test]
     fn test_timestamp_format_iso8601() {
-        // 1705314600 = 2024-01-15T10:30:00Z
-        let ts = UNIX_EPOCH + Duration::from_secs(1705314600) + Duration::from_millis(123);
+        // 1_705_314_600 = 2024-01-15T10:30:00Z
+        let ts = UNIX_EPOCH + Duration::from_secs(1_705_314_600) + Duration::from_millis(123);
         let event = Event::with_timestamp(ts);
 
         // Should be ISO 8601 format
@@ -578,9 +578,9 @@ mod tests {
 
     #[test]
     fn test_format_timestamp_specific_date() {
-        // 1705314600 = 2024-01-15T10:30:00 UTC (verified with epoch converter)
+        // 1_705_314_600 = 2024-01-15T10:30:00 UTC (verified with epoch converter)
         // Adding 500ms to get 10:30:00.500
-        let ts = UNIX_EPOCH + Duration::from_secs(1705314600) + Duration::from_millis(500);
+        let ts = UNIX_EPOCH + Duration::from_secs(1_705_314_600) + Duration::from_millis(500);
         let formatted = Event::format_timestamp(ts);
         assert_eq!(formatted, "2024-01-15T10:30:00.500Z");
     }
@@ -753,7 +753,7 @@ mod tests {
         event.add_field("key", "");
 
         assert!(event.data.contains_key(""));
-        assert_eq!(event.data.get("key"), Some(&Value::String("".to_string())));
+        assert_eq!(event.data.get("key"), Some(&Value::String(String::new())));
     }
 
     #[test]

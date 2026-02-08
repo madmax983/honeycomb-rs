@@ -642,7 +642,7 @@ mod tests {
                 dataset: "my-dataset".to_string(),
                 ..Default::default()
             },
-            transmission_options: Default::default(),
+            transmission_options: TransmissionOptions::default(),
         };
 
         assert_eq!(config.options.api_key, "my-key");

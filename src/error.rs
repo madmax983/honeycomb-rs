@@ -25,12 +25,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Http(msg) => write!(f, "HTTP error: {msg}"),
-            Error::Serialization(msg) => write!(f, "Serialization error: {msg}"),
-            Error::Config(msg) => write!(f, "Configuration error: {msg}"),
-            Error::Buffer(msg) => write!(f, "Buffer error: {msg}"),
-            Error::Channel(msg) => write!(f, "Channel error: {msg}"),
-            Error::Timeout(msg) => write!(f, "Timeout error: {msg}"),
+            Self::Http(msg) => write!(f, "HTTP error: {msg}"),
+            Self::Serialization(msg) => write!(f, "Serialization error: {msg}"),
+            Self::Config(msg) => write!(f, "Configuration error: {msg}"),
+            Self::Buffer(msg) => write!(f, "Buffer error: {msg}"),
+            Self::Channel(msg) => write!(f, "Channel error: {msg}"),
+            Self::Timeout(msg) => write!(f, "Timeout error: {msg}"),
         }
     }
 }
@@ -40,13 +40,13 @@ impl std::error::Error for Error {}
 #[cfg(feature = "http")]
 impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
-        Error::Http(err.to_string())
+        Self::Http(err.to_string())
     }
 }
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error::Serialization(err.to_string())
+        Self::Serialization(err.to_string())
     }
 }
 

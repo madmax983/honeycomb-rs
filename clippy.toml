@@ -1,0 +1,12 @@
+# Clippy configuration for honeycomb-rs
+# See: https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Allow longer numeric literals without separators for algorithm constants
+# (e.g., magic numbers in date calculations)
+literal-representation-threshold = 10000
+
+# Standard cognitive complexity threshold
+cognitive-complexity-threshold = 25
+
+# Allow slightly longer functions for initialization code
+too-many-lines-threshold = 150

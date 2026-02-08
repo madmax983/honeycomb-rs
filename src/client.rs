@@ -80,13 +80,10 @@ impl Response {
         if self.error.is_some() {
             return true; // Network errors are retryable
         }
-        match self.status_code {
-            Some(code) => {
-                // 429 Too Many Requests, 5xx Server errors are retryable
-                code == 429 || code >= 500
-            }
-            None => true,
-        }
+        self.status_code.is_none_or(|code| {
+            // 429 Too Many Requests, 5xx Server errors are retryable
+            code == 429 || code >= 500
+        })
     }
 }
 
@@ -211,7 +208,7 @@ impl std::fmt::Debug for Client {
             .field("config", &self.config)
             .field("buffer_len", &self.buffer.len())
             .field("retry_config", &self.retry_config)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

@@ -187,15 +187,11 @@ impl BatchBuffer {
     ///
     /// Returns `true` if there are events in the buffer and the timeout has expired.
     pub fn is_timeout_expired(&self) -> bool {
-        let batch_start = match self.batch_start.lock() {
-            Ok(guard) => guard,
-            Err(_) => return false,
+        let Ok(batch_start) = self.batch_start.lock() else {
+            return false;
         };
 
-        match *batch_start {
-            Some(start) => start.elapsed() >= self.options.batch_timeout,
-            None => false,
-        }
+        batch_start.is_some_and(|start| start.elapsed() >= self.options.batch_timeout)
     }
 
     /// Flush the buffer, returning all pending events.
