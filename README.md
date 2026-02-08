@@ -43,6 +43,10 @@ client.flush()?;
 - `default`: Client without HTTP (for testing/mocking)
 - `http`: Enable HTTP transmission to Honeycomb API
 
+## Minimum Supported Rust Version (MSRV)
+
+This crate requires **Rust 1.71** or newer.
+
 ## License
 
 Licensed under either of:
