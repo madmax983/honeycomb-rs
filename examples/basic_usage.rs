@@ -23,8 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_sample_rate(1); // Send all events (no sampling)
 
     let transmission_options = TransmissionOptions::default()
-        .with_max_batch_size(50)           // Send batch when 50 events collected
-        .with_batch_timeout(Duration::from_millis(100))  // Or after 100ms
+        .with_max_batch_size(50) // Send batch when 50 events collected
+        .with_batch_timeout(Duration::from_millis(100)) // Or after 100ms
         .with_pending_work_capacity(10000); // Queue capacity
 
     let config = Config::new("your-api-key-here", "my-dataset")
