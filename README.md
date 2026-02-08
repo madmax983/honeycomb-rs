@@ -45,7 +45,7 @@ client.flush()?;
 
 ## Minimum Supported Rust Version (MSRV)
 
-This crate requires **Rust 1.71** or newer.
+This crate requires **Rust 1.83** or newer (latest stable).
 
 ## License
 

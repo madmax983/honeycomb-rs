@@ -9,7 +9,7 @@ repository = "https://github.com/madmax983/honeycomb-rs"
 keywords = ["honeycomb", "observability", "telemetry", "tracing"]
 categories = ["development-tools::profiling", "api-bindings"]
 readme = "README.md"
-rust-version = "1.71"
+rust-version = "1.83"
 
 [dependencies]
 # Core serialization
