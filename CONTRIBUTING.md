@@ -77,7 +77,25 @@ cargo test -- --nocapture
 
 # Check coverage
 cargo tarpaulin --all-features --workspace --out Html
+
+# Mutation testing (validate test quality)
+./run-mutants.sh       # Linux/macOS
+.\run-mutants.ps1      # Windows
 ```
+
+### Mutation Testing
+
+We use [cargo-mutants](https://mutants.rs/) to validate test effectiveness. Mutation testing introduces deliberate bugs and verifies that tests catch them:
+
+- **Required**: 80% mutation score minimum
+- **Run locally**: `./run-mutants.sh` or `.\run-mutants.ps1`
+- **CI**: Runs on PRs and weekly
+- **Results**: Check `mutants.out/missed.txt` for uncaught mutants
+
+If tests miss mutants:
+1. Review `mutants.out/missed.txt` for the specific mutations
+2. Add tests that exercise those code paths
+3. Focus on edge cases, error conditions, and boundary values
 
 ## Benchmarks
 

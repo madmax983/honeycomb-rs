@@ -17,6 +17,10 @@ tarpaulin-report.html
 cobertura.xml
 *.profraw
 
+# Mutation testing
+mutants.out/
+mutants.out.old/
+
 # Environment
 .env
 .env.local

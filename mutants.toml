@@ -1,0 +1,40 @@
+# cargo-mutants configuration
+# See: https://mutants.rs/configuration.html
+
+# Minimum mutation score to pass (80%)
+# minimum_test_timeouts = 0
+
+# Files/functions to exclude from mutation testing
+exclude_globs = [
+    # Generated code
+    "target/**",
+    # Test utilities
+    "**/tests/**",
+    # Examples aren't production code
+    "examples/**",
+]
+
+# Don't mutate certain functions that are trivial or auto-generated
+exclude_fns = [
+    # Trait implementations that are auto-derived
+    # Debug, Clone, etc. are covered by compiler
+]
+
+# Timeout multiplier for tests (default is 5x baseline)
+# If tests are slow, increase this
+timeout_multiplier = 5.0
+
+# Build in release mode for faster mutation testing
+# build_config = "release"
+
+# Show diffs for uncaught mutants
+show_diffs = true
+
+# Print times for each mutant
+print_times = true
+
+# Shuffle mutants to avoid biasing results
+shuffle = true
+
+# Stop after N uncaught mutants (0 = don't stop)
+# max_uncaught = 10

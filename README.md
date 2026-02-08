@@ -47,6 +47,15 @@ client.flush()?;
 
 This crate requires **Rust 1.83** or newer (latest stable).
 
+## Quality Standards
+
+This project maintains strict quality gates:
+
+- ✅ **85%+ code coverage** (enforced by CI)
+- ✅ **80%+ mutation score** (validates test effectiveness)
+- ✅ **Clippy pedantic + nursery** lints
+- ✅ **Zero warnings** policy
+
 ## License
 
 Licensed under either of:
