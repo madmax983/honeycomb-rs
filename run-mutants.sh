@@ -14,7 +14,7 @@ fi
 
 # Run mutation testing
 echo "🔬 Testing mutants (this may take a while)..."
-cargo mutants --all-features --output mutants.out -- --all-features
+cargo mutants --all-features --output mutants.out
 
 # Parse results
 CAUGHT=$(grep -oP 'caught \K\d+' mutants.out/mutants.out.txt || echo "0")

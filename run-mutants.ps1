@@ -11,7 +11,7 @@ if (-not (Get-Command cargo-mutants -ErrorAction SilentlyContinue)) {
 
 # Run mutation testing
 Write-Host "🔬 Testing mutants (this may take a while)..." -ForegroundColor Yellow
-cargo mutants --all-features --output mutants.out -- --all-features
+cargo mutants --all-features --output mutants.out
 
 # Parse results
 $mutantsOut = Get-Content mutants.out/mutants.out.txt -Raw
