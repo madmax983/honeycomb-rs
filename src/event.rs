@@ -862,4 +862,74 @@ mod tests {
         // CRITICAL: Verifies milliseconds aren't truncated
         assert!(json.contains(".123"), "Milliseconds must be preserved");
     }
+
+    #[test]
+    fn test_date_algorithm_edge_cases() {
+        use std::time::{Duration, UNIX_EPOCH};
+
+        // CRITICAL: Edge case dates to catch arithmetic mutants
+        // Tests various boundary conditions in the date algorithm
+
+        // Test 1: End of year (validates month/day calculation)
+        let ts_eoy = UNIX_EPOCH + Duration::from_secs(1_735_689_600); // 2025-01-01
+        let event = Event::with_timestamp(ts_eoy);
+        let json = event.to_json().unwrap();
+        assert!(json.contains("2025-01-01"), "New year date must be correct");
+
+        // Test 2: Mid-year date (validates all operators)
+        let ts_mid = UNIX_EPOCH + Duration::from_secs(1_719_792_000); // 2024-07-01
+        let event = Event::with_timestamp(ts_mid);
+        let json = event.to_json().unwrap();
+        assert!(json.contains("2024-07"), "Mid-year date must be correct");
+
+        // Test 3: Recent winter date (validates era calculation)
+        let ts_winter = UNIX_EPOCH + Duration::from_secs(1_704_067_200); // 2024-01-01
+        let event = Event::with_timestamp(ts_winter);
+        let json = event.to_json().unwrap();
+        assert!(json.contains("2024-01-01"), "Winter date must be correct");
+
+        // Test 4: Future date (validates positive era)
+        let ts_future = UNIX_EPOCH + Duration::from_secs(1_800_000_000); // 2027-01-15
+        let event = Event::with_timestamp(ts_future);
+        let json = event.to_json().unwrap();
+        assert!(json.contains("2027-01"), "Future date must be correct");
+
+        // Test 5: Another boundary (validates comparison operators)
+        let ts_boundary = UNIX_EPOCH + Duration::from_secs(1_609_459_200); // 2021-01-01
+        let event = Event::with_timestamp(ts_boundary);
+        let json = event.to_json().unwrap();
+        assert!(json.contains("2021-01-01"), "Boundary date must be correct");
+    }
+
+    #[test]
+    fn test_fieldholder_add_actually_works() {
+        use serde_json::json;
+
+        let mut event = Event::new();
+
+        // Test that add() actually serializes and adds data, not just Ok(())
+        let data = json!({
+            "string_field": "test",
+            "number_field": 42,
+            "bool_field": true
+        });
+
+        // CRITICAL: Catches mutant that returns Ok(()) without adding
+        event.add(&data).expect("Should serialize successfully");
+
+        // Verify the data was actually added
+        assert_eq!(event.len(), 3, "Should have 3 fields");
+        assert_eq!(
+            event.data.get("string_field"),
+            Some(&serde_json::Value::String("test".to_string()))
+        );
+        assert_eq!(
+            event.data.get("number_field"),
+            Some(&serde_json::Value::Number(42.into()))
+        );
+        assert_eq!(
+            event.data.get("bool_field"),
+            Some(&serde_json::Value::Bool(true))
+        );
+    }
 }

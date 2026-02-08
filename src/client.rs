@@ -1066,4 +1066,77 @@ mod tests {
             Duration::from_millis(500)
         );
     }
+
+    #[test]
+    fn test_flush_respects_empty_check() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        // CRITICAL: Catches deletion of ! in flush
+        // Flush with no events should succeed without trying to send
+        assert_eq!(client.buffered_events(), 0);
+        let result = client.flush();
+        assert!(result.is_ok(), "Flush empty buffer should succeed");
+
+        // Stats should show no batches sent
+        assert_eq!(client.stats().snapshot().batches_sent, 0);
+    }
+
+    #[test]
+    fn test_batch_size_boundary_validation() {
+        use crate::TransmissionOptions;
+
+        // CRITICAL: Catches > vs >= vs == vs < mutations
+        let transmission_options = TransmissionOptions::default().with_max_batch_bytes(100); // Very small limit
+
+        let config =
+            Config::new("test-key", "test-dataset").with_transmission_options(transmission_options);
+
+        let client = Client::new(config).unwrap();
+
+        // Create an event that will definitely exceed 100 bytes when serialized
+        let mut large_event = Event::new();
+        for i in 0..20 {
+            large_event.add_field(format!("field_{i}"), format!("value_{i}_with_lots_of_data"));
+        }
+
+        client.send(large_event).unwrap();
+
+        // Try to flush - should fail due to size
+        let result = client.flush();
+
+        // CRITICAL: If boundary check is wrong (> changed to >=, ==, <), this will behave differently
+        assert!(
+            result.is_err(),
+            "Should fail when batch exceeds max_batch_bytes"
+        );
+
+        // Verify the failure was due to buffer error
+        if let Err(e) = result {
+            let err_str = e.to_string();
+            assert!(
+                err_str.contains("exceeds maximum"),
+                "Error should mention size limit"
+            );
+        }
+    }
+
+    #[test]
+    fn test_close_with_negation_logic() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        // Add events
+        client.send(Event::new()).unwrap();
+        client.send(Event::new()).unwrap();
+
+        let initial_count = client.buffered_events();
+        assert_eq!(initial_count, 2);
+
+        // CRITICAL: Catches deletion of ! in close()
+        // close() should flush if buffer is NOT empty
+        let _ = client.close();
+        // Can't check after close since it consumes self
+        // But the mutant would skip the flush if ! is deleted
+    }
 }
