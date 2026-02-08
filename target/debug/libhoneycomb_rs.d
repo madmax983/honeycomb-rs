@@ -1,0 +1,1 @@
+C:\Users\markm\honeycomb-rs\target\debug\libhoneycomb_rs.rlib: C:\Users\markm\honeycomb-rs\src\batch.rs C:\Users\markm\honeycomb-rs\src\client.rs C:\Users\markm\honeycomb-rs\src\config.rs C:\Users\markm\honeycomb-rs\src\error.rs C:\Users\markm\honeycomb-rs\src\event.rs C:\Users\markm\honeycomb-rs\src\lib.rs

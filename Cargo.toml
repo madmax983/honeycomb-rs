@@ -1,0 +1,33 @@
+[package]
+name = "honeycomb-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mark Maxwell <mark@example.com>"]
+description = "A minimal, security-focused Honeycomb.io client for Rust"
+license = "MIT"
+repository = "https://github.com/madmax983/honeycomb-rs"
+keywords = ["honeycomb", "observability", "telemetry", "tracing"]
+categories = ["development-tools::profiling", "api-bindings"]
+readme = "README.md"
+
+[dependencies]
+# Core serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client (optional for testing/mocking)
+reqwest = { version = "0.11", features = ["json", "blocking"], optional = true }
+
+# Sync primitives
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio = { version = "1.35", features = ["rt-multi-thread", "macros", "test-util"] }
+tempfile = "3.8"
+
+[features]
+# Default: client without HTTP (useful for testing/mocking)
+default = []
+
+# Enable HTTP transmission to Honeycomb API
+http = ["dep:reqwest"]
