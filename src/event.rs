@@ -193,7 +193,7 @@ impl Event {
         }
         // Simple deterministic sampling based on event content hash
         let hash = self.content_hash();
-        !hash.is_multiple_of(self.sample_rate as u64)
+        hash % (self.sample_rate as u64) != 0
     }
 
     /// Generate a hash of the event content for sampling purposes.
