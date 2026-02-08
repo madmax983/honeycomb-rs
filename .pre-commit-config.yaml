@@ -1,0 +1,56 @@
+# Pre-commit hooks for quality gates
+# Install: pip install pre-commit && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      # Format check
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        pass_filenames: false
+        args: ["--all", "--", "--check"]
+
+      # Clippy with pedantic/nursery lints
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy
+        language: system
+        types: [rust]
+        pass_filenames: false
+        args:
+          - "--all-targets"
+          - "--all-features"
+          - "--"
+          - "-D"
+          - "warnings"
+          - "-W"
+          - "clippy::pedantic"
+          - "-W"
+          - "clippy::nursery"
+          - "-A"
+          - "clippy::module_name_repetitions"
+          - "-A"
+          - "clippy::missing_errors_doc"
+
+      # Run tests
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test
+        language: system
+        types: [rust]
+        pass_filenames: false
+        args: ["--all-features"]
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: mixed-line-ending

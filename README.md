@@ -1,5 +1,11 @@
 # honeycomb-rs
 
+[![CI](https://github.com/madmax983/honeycomb-rs/workflows/CI/badge.svg)](https://github.com/madmax983/honeycomb-rs/actions)
+[![codecov](https://codecov.io/gh/madmax983/honeycomb-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/madmax983/honeycomb-rs)
+[![Crates.io](https://img.shields.io/crates/v/honeycomb-rs.svg)](https://crates.io/crates/honeycomb-rs)
+[![Documentation](https://docs.rs/honeycomb-rs/badge.svg)](https://docs.rs/honeycomb-rs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A minimal, security-focused Honeycomb.io client for Rust.
 
 Modern replacement for the unmaintained `libhoney-rust` with:
