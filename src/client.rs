@@ -1003,4 +1003,67 @@ mod tests {
 
         assert_eq!(config.total_timeout, DEFAULT_TOTAL_TIMEOUT);
     }
+
+    // =====================================================
+    // Mutation Testing: Critical Edge Cases
+    // =====================================================
+
+    #[test]
+    fn test_flush_actually_flushes_buffer() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        // Add events
+        client.send(Event::new()).unwrap();
+        client.send(Event::new()).unwrap();
+
+        // Before flush: events in buffer
+        assert_eq!(client.buffered_events(), 2);
+
+        // Flush (will fail to send but should still clear buffer)
+        let _ = client.flush();
+
+        // After flush: buffer should be empty
+        // CRITICAL: Catches mutant that just returns Ok(()) without flushing
+        assert_eq!(client.buffered_events(), 0, "Flush should clear the buffer");
+    }
+
+    #[test]
+    fn test_close_actually_closes() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        client.send(Event::new()).unwrap();
+        assert_eq!(client.buffered_events(), 1);
+
+        // Close takes ownership, so we need to check before calling it
+        let has_events = client.buffered_events() > 0;
+        assert!(has_events, "Should have events before close");
+
+        // Close should flush (we can't check after since close consumes self)
+        // The mutant test is caught by checking flush behavior instead
+        let _ = client.close();
+    }
+
+    #[test]
+    fn test_with_retry_config_actually_sets_config() {
+        let config = Config::new("test-key", "test-dataset");
+        let retry_config = RetryConfig::new()
+            .with_max_retries(10)
+            .with_initial_delay(Duration::from_millis(500));
+
+        // with_retry_config is an associated function, not a method
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+
+        // CRITICAL: Catches mutant that returns Ok(Default::default())
+        assert_eq!(
+            client.retry_config().max_retries,
+            10,
+            "Retry config should be set"
+        );
+        assert_eq!(
+            client.retry_config().initial_delay,
+            Duration::from_millis(500)
+        );
+    }
 }

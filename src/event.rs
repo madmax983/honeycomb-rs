@@ -813,4 +813,53 @@ mod tests {
         assert!(json.contains("level2"));
         assert!(json.contains("42"));
     }
+
+    // =====================================================
+    // Mutation Testing: Date Algorithm Validation
+    // =====================================================
+
+    #[test]
+    fn test_date_arithmetic_unix_epoch() {
+        use std::time::{Duration, UNIX_EPOCH};
+
+        // CRITICAL: Catches mutant that changes - to + in date algorithm
+        // Test Unix epoch (0 seconds = 1970-01-01)
+        let event = Event::with_timestamp(UNIX_EPOCH);
+        let json = event.to_json().unwrap();
+        assert!(
+            json.contains("1970-01-01"),
+            "Unix epoch date arithmetic must be correct"
+        );
+
+        // Test Y2K (validates era boundary calculation)
+        let ts_2000 = UNIX_EPOCH + Duration::from_secs(946_684_800);
+        let event = Event::with_timestamp(ts_2000);
+        let json = event.to_json().unwrap();
+        assert!(
+            json.contains("2000-01-01"),
+            "Y2K date arithmetic must be correct"
+        );
+
+        // Test 2024 (recent date)
+        let ts_2024 = UNIX_EPOCH + Duration::from_secs(1_704_067_200); // 2024-01-01
+        let event = Event::with_timestamp(ts_2024);
+        let json = event.to_json().unwrap();
+        assert!(
+            json.contains("2024-01-01"),
+            "Modern date arithmetic must be correct"
+        );
+    }
+
+    #[test]
+    fn test_rfc3339_millisecond_precision() {
+        use std::time::{Duration, UNIX_EPOCH};
+
+        // Test that milliseconds are preserved in output
+        let ts = UNIX_EPOCH + Duration::from_secs(1_705_314_600) + Duration::from_millis(123);
+        let event = Event::with_timestamp(ts);
+        let json = event.to_json().unwrap();
+
+        // CRITICAL: Verifies milliseconds aren't truncated
+        assert!(json.contains(".123"), "Milliseconds must be preserved");
+    }
 }

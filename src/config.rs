@@ -666,4 +666,20 @@ mod tests {
         let opts: ClientOpts = ClientOpts::new("key", "dataset");
         assert_eq!(opts.api_key, "key");
     }
+
+    // =====================================================
+    // Mutation Testing: Arithmetic Validation
+    // =====================================================
+
+    #[test]
+    fn test_max_batch_bytes_calculation() {
+        // CRITICAL: Catches mutants that change * to + or /
+        // 10 * 1024 * 1024 = 10,485,760 bytes (10 MB)
+        assert_eq!(
+            DEFAULT_MAX_BATCH_BYTES, 10_485_760,
+            "Max batch bytes should be exactly 10 MB"
+        );
+        // Verify it's actually 10 MB
+        assert_eq!(DEFAULT_MAX_BATCH_BYTES, 10 * 1024 * 1024);
+    }
 }

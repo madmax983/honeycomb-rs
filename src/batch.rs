@@ -713,4 +713,25 @@ mod tests {
             Some(&serde_json::Value::Number(2.into()))
         );
     }
+
+    // =====================================================
+    // Mutation Testing: Edge Cases
+    // =====================================================
+
+    #[test]
+    fn test_is_empty_returns_true_when_empty() {
+        let buffer = BatchBuffer::with_defaults();
+        // CRITICAL: Test that is_empty returns true, not just false
+        assert!(buffer.is_empty(), "Empty buffer should return true");
+        assert_eq!(buffer.len(), 0);
+    }
+
+    #[test]
+    fn test_is_empty_returns_false_when_not_empty() {
+        let buffer = BatchBuffer::with_defaults();
+        buffer.add(Event::new()).unwrap();
+        // CRITICAL: Catches mutant that always returns true
+        assert!(!buffer.is_empty(), "Non-empty buffer should return false");
+        assert_eq!(buffer.len(), 1);
+    }
 }
