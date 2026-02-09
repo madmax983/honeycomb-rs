@@ -34,3 +34,6 @@ mutants.out.old/
 # Test artifacts
 *.test
 *.bench
+
+.claude/
+
