@@ -43,6 +43,12 @@ client.flush()?;
 - `default`: Client without HTTP (for testing/mocking)
 - `http`: Enable blocking HTTP transmission to Honeycomb API
 
+## API Stability (0.x)
+
+This crate is in `0.x`, so minor versions may include breaking changes while
+the API is refined. Patch releases (`0.1.x`) will focus on bug fixes and
+non-breaking improvements.
+
 ## Delivery Semantics
 
 `flush()` and `close()` are at-most-once for in-memory buffered events. If
@@ -51,6 +57,18 @@ For convenience, `flush_with_retry(max_attempts)` retries transmission of the
 already-drained batch with exponential backoff.
 `close_with_retry(max_attempts)` provides the same behavior while consuming the
 client.
+
+## Retry Model
+
+There are two retry layers:
+
+1. Request-layer retries: `RetryConfig` controls HTTP retry behavior per send
+   attempt (status-based retryability, exponential backoff, total timeout).
+2. Helper-layer retries: `flush_with_retry(max_attempts)` and
+   `close_with_retry(max_attempts)` retry transmission of the already-drained
+   batch across helper attempts.
+
+If both are enabled, total attempts are multiplicative across layers.
 
 ## Minimum Supported Rust Version (MSRV)
 
@@ -64,6 +82,11 @@ This project maintains strict quality gates:
 - 80%+ mutation score (validates test effectiveness)
 - Clippy pedantic + nursery lints
 - Zero warnings policy
+
+## Examples
+
+- Basic usage: `cargo run --example basic_usage --features http`
+- Retry helpers: `cargo run --example retry_close --features http`
 
 ## License
 

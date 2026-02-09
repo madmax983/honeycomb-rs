@@ -10,6 +10,12 @@ keywords = ["honeycomb", "observability", "telemetry", "tracing"]
 categories = ["development-tools::profiling", "api-bindings"]
 readme = "README.md"
 rust-version = "1.83"
+exclude = [
+    ".claude/**",
+    "mutants.out/**",
+    "test_date.exe",
+    "test_date.pdb",
+]
 
 [dependencies]
 # Core serialization
@@ -19,9 +25,6 @@ percent-encoding = "2.3"
 
 # HTTP client (optional for testing/mocking)
 reqwest = { version = "0.11", features = ["json", "blocking"], optional = true }
-
-# Sync primitives
-parking_lot = "0.12"
 
 [dev-dependencies]
 tokio = { version = "1.35", features = ["rt-multi-thread", "macros", "test-util"] }
