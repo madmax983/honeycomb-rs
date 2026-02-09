@@ -128,10 +128,14 @@ impl Event {
     /// Returns an error if the value cannot be converted to a JSON object.
     pub fn add<T: Serialize>(&mut self, value: &T) -> Result<(), crate::error::Error> {
         let json = serde_json::to_value(value)?;
-        if let Value::Object(map) = json {
-            for (k, v) in map {
-                self.data.insert(k, v);
-            }
+        let Value::Object(map) = json else {
+            return Err(crate::error::Error::Serialization(
+                "Event::add expected a JSON object at the top level".to_string(),
+            ));
+        };
+
+        for (k, v) in map {
+            self.data.insert(k, v);
         }
         Ok(())
     }
@@ -421,6 +425,15 @@ mod tests {
             Some(&Value::String("test".to_string()))
         );
         assert_eq!(event.data.get("value"), Some(&Value::Number(100.into())));
+    }
+
+    #[test]
+    fn test_add_rejects_non_object_values() {
+        let mut event = Event::new();
+        let err = event.add(&serde_json::json!(42)).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("expected a JSON object at the top level"));
     }
 
     #[test]

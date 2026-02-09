@@ -8,7 +8,8 @@ use std::time::Duration;
 
 use crate::batch::{BatchBuffer, BatchStats};
 use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::error::Error;
+use crate::error::Result;
 use crate::event::Event;
 
 /// Default initial retry delay.
@@ -331,12 +332,56 @@ impl Client {
     ///
     /// Forces transmission of all events in the buffer, regardless of
     /// batch size or timeout.
+    ///
+    /// Delivery semantics are at-most-once: events are drained from the in-memory
+    /// buffer before transmission. If transmission fails, callers are expected to
+    /// retry from their own source of truth.
     pub fn flush(&self) -> Result<()> {
         let batch = self.buffer.flush()?;
         if !batch.is_empty() {
             self.send_batch(&batch)?;
         }
         Ok(())
+    }
+
+    /// Flush all pending events with helper-level retries.
+    ///
+    /// This drains the in-memory buffer once, then retries sending that drained
+    /// batch up to `max_attempts` times using exponential backoff delays from
+    /// `retry_config`. Retries are in addition to the per-request retries that
+    /// may already be configured in `retry_config`.
+    ///
+    /// Delivery semantics remain at-most-once for the in-memory buffer because
+    /// drained events are not re-buffered.
+    pub fn flush_with_retry(&self, max_attempts: u32) -> Result<()> {
+        if max_attempts == 0 {
+            return Err(Error::Config(
+                "flush_with_retry: max_attempts must be greater than 0".to_string(),
+            ));
+        }
+
+        let batch = self.buffer.flush()?;
+        if batch.is_empty() {
+            return Ok(());
+        }
+
+        let mut last_error: Option<Error> = None;
+        for attempt in 0..max_attempts {
+            match self.send_batch(&batch) {
+                Ok(_) => return Ok(()),
+                Err(err) => {
+                    last_error = Some(err);
+                    if attempt + 1 >= max_attempts {
+                        break;
+                    }
+                    std::thread::sleep(self.retry_config.delay_for_attempt(attempt));
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            Error::Http("flush_with_retry: no send attempts were executed".to_string())
+        }))
     }
 
     /// Send a batch of events to Honeycomb.
@@ -385,7 +430,11 @@ impl Client {
 
         for attempt in 0..=self.retry_config.max_retries {
             // Check total timeout before each attempt
-            if overall_start.elapsed() >= self.retry_config.total_timeout {
+            let remaining_budget = self
+                .retry_config
+                .total_timeout
+                .saturating_sub(overall_start.elapsed());
+            if remaining_budget.is_zero() {
                 self.buffer.stats().record_batch_failed();
                 return Err(Error::Timeout(format!(
                     "Total timeout ({:?}) exceeded after {} attempts",
@@ -400,6 +449,7 @@ impl Client {
                 .post(&endpoint)
                 .header("X-Honeycomb-Team", &self.config.options.api_key)
                 .header("Content-Type", "application/json")
+                .timeout(remaining_budget)
                 .body(body.clone())
                 .send();
 
@@ -449,10 +499,32 @@ impl Client {
         }
 
         self.buffer.stats().record_batch_failed();
-        Err(Error::Http(format!(
-            "Failed to send batch after {} retries: {:?}",
-            self.retry_config.max_retries, last_response.error
+        Err(Error::Http(self.format_failure_message(
+            self.retry_config.max_retries,
+            &last_response,
         )))
+    }
+
+    #[cfg(feature = "http")]
+    fn format_failure_message(&self, max_retries: u32, last_response: &Response) -> String {
+        let attempts = max_retries + 1;
+        if let Some(err) = &last_response.error {
+            return format!("Failed to send batch after {attempts} attempts: network error: {err}");
+        }
+
+        if let Some(status) = last_response.status_code {
+            let body = last_response
+                .body
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .unwrap_or("<empty response body>");
+            return format!(
+                "Failed to send batch after {attempts} attempts: HTTP {status}: {body}"
+            );
+        }
+
+        format!("Failed to send batch after {attempts} attempts: unknown error")
     }
 
     /// Get a reference to the client's statistics.
@@ -493,6 +565,10 @@ impl Client {
     }
 
     /// Close the client, flushing any pending events.
+    ///
+    /// Delivery semantics are at-most-once: if the final flush fails, pending
+    /// events are not re-buffered. Callers should retry from upstream data if
+    /// at-least-once delivery is required.
     pub fn close(self) -> Result<()> {
         // Consume self to prevent further use
         let batch = self.buffer.flush()?;
@@ -500,6 +576,14 @@ impl Client {
             self.send_batch(&batch)?;
         }
         Ok(())
+    }
+
+    /// Close the client after retrying flush of pending events.
+    ///
+    /// This is a convenience wrapper around `flush_with_retry(max_attempts)`
+    /// while consuming the client.
+    pub fn close_with_retry(self, max_attempts: u32) -> Result<()> {
+        self.flush_with_retry(max_attempts)
     }
 }
 
@@ -846,6 +930,32 @@ mod tests {
         // Client is consumed, cannot use after close
     }
 
+    #[test]
+    fn test_close_with_retry_rejects_zero_attempts() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        let result = client.close_with_retry(0);
+        assert!(result.is_err(), "zero attempts should be rejected");
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("max_attempts must be greater than 0"));
+    }
+
+    // This test triggers HTTP transmission when honeycomb feature is enabled,
+    // so we only run it in mock mode.
+    #[cfg(not(feature = "http"))]
+    #[test]
+    fn test_close_with_retry_succeeds_in_mock_mode() {
+        let config = Config::new("key", "dataset");
+        let client = Client::new(config).unwrap();
+
+        client.send(Event::new()).unwrap();
+        let result = client.close_with_retry(3);
+        assert!(result.is_ok());
+    }
+
     // =====================================================
     // Client Accessors Tests
     // =====================================================
@@ -1080,6 +1190,34 @@ mod tests {
 
         // Stats should show no batches sent
         assert_eq!(client.stats().snapshot().batches_sent, 0);
+    }
+
+    #[test]
+    fn test_flush_with_retry_rejects_zero_attempts() {
+        let config = Config::new("test-key", "test-dataset");
+        let client = Client::new(config).unwrap();
+
+        let result = client.flush_with_retry(0);
+        assert!(result.is_err(), "zero attempts should be rejected");
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("max_attempts must be greater than 0"));
+    }
+
+    // This test triggers HTTP transmission when honeycomb feature is enabled,
+    // so we only run it in mock mode.
+    #[cfg(not(feature = "http"))]
+    #[test]
+    fn test_flush_with_retry_succeeds_in_mock_mode() {
+        let config = Config::new("key", "dataset");
+        let client = Client::new(config).unwrap();
+
+        client.send(Event::new()).unwrap();
+        let result = client.flush_with_retry(3);
+        assert!(result.is_ok());
+        assert_eq!(client.buffered_events(), 0);
+        assert_eq!(client.stats().snapshot().batches_sent, 1);
     }
 
     #[test]

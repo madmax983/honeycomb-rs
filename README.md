@@ -9,11 +9,11 @@
 A minimal, security-focused Honeycomb.io client for Rust.
 
 Modern replacement for the unmaintained `libhoney-rust` with:
-- ✅ Pure crates.io dependencies (no git deps)
-- ✅ Modern reqwest 0.11+ with async/sync support
-- ✅ Exponential backoff retry logic
-- ✅ Event batching for efficiency
-- ✅ Type-safe configuration
+- Pure crates.io dependencies (no git deps)
+- Modern reqwest 0.11+ blocking HTTP support (feature-gated)
+- Exponential backoff retry logic
+- Event batching for efficiency
+- Type-safe configuration
 
 ## Installation
 
@@ -41,7 +41,16 @@ client.flush()?;
 ## Features
 
 - `default`: Client without HTTP (for testing/mocking)
-- `http`: Enable HTTP transmission to Honeycomb API
+- `http`: Enable blocking HTTP transmission to Honeycomb API
+
+## Delivery Semantics
+
+`flush()` and `close()` are at-most-once for in-memory buffered events. If
+transmission fails, callers should retry using their own upstream source data.
+For convenience, `flush_with_retry(max_attempts)` retries transmission of the
+already-drained batch with exponential backoff.
+`close_with_retry(max_attempts)` provides the same behavior while consuming the
+client.
 
 ## Minimum Supported Rust Version (MSRV)
 
@@ -51,10 +60,10 @@ This crate requires **Rust 1.83** or newer (latest stable).
 
 This project maintains strict quality gates:
 
-- ✅ **85%+ code coverage** (enforced by CI)
-- ✅ **80%+ mutation score** (validates test effectiveness)
-- ✅ **Clippy pedantic + nursery** lints
-- ✅ **Zero warnings** policy
+- 85%+ code coverage (enforced by CI)
+- 80%+ mutation score (validates test effectiveness)
+- Clippy pedantic + nursery lints
+- Zero warnings policy
 
 ## License
 
@@ -70,4 +79,3 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
-

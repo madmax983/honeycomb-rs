@@ -3,7 +3,26 @@
 //! This module provides configuration structs compatible with the `libhoney-rust` API,
 //! allowing drop-in replacement for existing `tracing-honeycomb` integrations.
 
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::time::Duration;
+
+const DATASET_SEGMENT_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'%')
+    .add(b'/')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'[')
+    .add(b'\\')
+    .add(b']')
+    .add(b'^')
+    .add(b'`')
+    .add(b'{')
+    .add(b'|')
+    .add(b'}');
 
 /// Default Honeycomb API host.
 pub const DEFAULT_API_HOST: &str = "https://api.honeycomb.io";
@@ -125,10 +144,12 @@ impl Options {
 
     /// Returns the batch endpoint URL.
     pub fn batch_endpoint(&self) -> String {
+        let encoded_dataset =
+            utf8_percent_encode(&self.dataset, DATASET_SEGMENT_ENCODE_SET).to_string();
         format!(
             "{}/1/batch/{}",
             self.api_host.trim_end_matches('/'),
-            self.dataset
+            encoded_dataset
         )
     }
 }
@@ -414,6 +435,15 @@ mod tests {
         assert_eq!(
             opts_custom.batch_endpoint(),
             "https://custom.api/1/batch/my-dataset"
+        );
+    }
+
+    #[test]
+    fn test_options_batch_endpoint_encodes_dataset_path_segment() {
+        let opts = Options::new("key", "my/data set?");
+        assert_eq!(
+            opts.batch_endpoint(),
+            "https://api.honeycomb.io/1/batch/my%2Fdata%20set%3F"
         );
     }
 

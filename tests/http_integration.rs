@@ -5,7 +5,7 @@
 #![cfg(feature = "http")]
 
 use honeycomb_rs::{Client, Config, Event, RetryConfig, TransmissionOptions};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -159,13 +159,54 @@ async fn test_non_retryable_error() {
 
         let client = Client::with_retry_config(config, retry_config).unwrap();
         // CRITICAL: Tests !is_retryable() (line 424)
-        let _ = client.send(Event::new()); // Will fail with 400, that's expected
+        let result = client.send(Event::new()); // Will fail with 400, that's expected
         std::thread::sleep(Duration::from_millis(100));
-        client.stats().snapshot()
+        (result, client.stats().snapshot())
     });
 
-    let stats = handle.await.unwrap();
+    let (result, stats) = handle.await.unwrap();
+    let err_text = result.unwrap_err().to_string();
+    assert!(
+        err_text.contains("HTTP 400"),
+        "error should include status code"
+    );
     assert_eq!(stats.batches_failed, 1, "Should fail without retry");
+}
+
+#[tokio::test]
+async fn test_total_timeout_caps_single_request_duration() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500).set_delay(Duration::from_secs(2)))
+        .mount(&mock_server)
+        .await;
+
+    let uri = mock_server.uri();
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let retry_config = RetryConfig::new()
+            .with_max_retries(10)
+            .with_initial_delay(Duration::from_millis(10))
+            .with_total_timeout(Duration::from_millis(150));
+
+        let config = Config::new("test-key", "test-dataset")
+            .with_api_host(uri)
+            .with_transmission_options(TransmissionOptions::default().with_max_batch_size(1));
+
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+        let start = Instant::now();
+        let result = client.send(Event::new());
+        let elapsed = start.elapsed();
+        (result, elapsed)
+    });
+
+    let (result, elapsed) = handle.await.unwrap();
+    assert!(result.is_err(), "request should fail due to timeout budget");
+    assert!(
+        elapsed < Duration::from_millis(1200),
+        "single attempt should honor total timeout budget; elapsed: {elapsed:?}"
+    );
 }
 
 #[tokio::test]
@@ -264,4 +305,140 @@ async fn test_429_rate_limit_retry() {
 
     let stats = handle.await.unwrap();
     assert!(stats.batches_sent > 0, "Should retry 429 and succeed");
+}
+
+#[tokio::test]
+async fn test_flush_with_retry_eventual_success() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&mock_server)
+        .await;
+
+    let uri = mock_server.uri();
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let retry_config = RetryConfig::new()
+            .with_max_retries(0)
+            .with_initial_delay(Duration::from_millis(5));
+
+        let config = Config::new("test-key", "test-dataset")
+            .with_api_host(uri)
+            .with_transmission_options(TransmissionOptions::default().with_max_batch_size(10));
+
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+        client.send(Event::new()).unwrap();
+        let result = client.flush_with_retry(2);
+        (result, client.stats().snapshot())
+    });
+
+    let (result, stats) = handle.await.unwrap();
+    assert!(result.is_ok(), "helper retry should eventually succeed");
+    assert_eq!(stats.batches_sent, 1);
+}
+
+#[tokio::test]
+async fn test_flush_with_retry_exhausted_attempts_fails() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&mock_server)
+        .await;
+
+    let uri = mock_server.uri();
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let retry_config = RetryConfig::new()
+            .with_max_retries(0)
+            .with_initial_delay(Duration::from_millis(5));
+
+        let config = Config::new("test-key", "test-dataset")
+            .with_api_host(uri)
+            .with_transmission_options(TransmissionOptions::default().with_max_batch_size(10));
+
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+        client.send(Event::new()).unwrap();
+        client.flush_with_retry(2)
+    });
+
+    let result = handle.await.unwrap();
+    assert!(
+        result.is_err(),
+        "helper retry should fail after max attempts"
+    );
+}
+
+#[tokio::test]
+async fn test_close_with_retry_eventual_success() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&mock_server)
+        .await;
+
+    let uri = mock_server.uri();
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let retry_config = RetryConfig::new()
+            .with_max_retries(0)
+            .with_initial_delay(Duration::from_millis(5));
+
+        let config = Config::new("test-key", "test-dataset")
+            .with_api_host(uri)
+            .with_transmission_options(TransmissionOptions::default().with_max_batch_size(10));
+
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+        client.send(Event::new()).unwrap();
+        client.close_with_retry(2)
+    });
+
+    let result = handle.await.unwrap();
+    assert!(result.is_ok(), "helper retry should eventually succeed");
+}
+
+#[tokio::test]
+async fn test_close_with_retry_exhausted_attempts_fails() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&mock_server)
+        .await;
+
+    let uri = mock_server.uri();
+
+    let handle = tokio::task::spawn_blocking(move || {
+        let retry_config = RetryConfig::new()
+            .with_max_retries(0)
+            .with_initial_delay(Duration::from_millis(5));
+
+        let config = Config::new("test-key", "test-dataset")
+            .with_api_host(uri)
+            .with_transmission_options(TransmissionOptions::default().with_max_batch_size(10));
+
+        let client = Client::with_retry_config(config, retry_config).unwrap();
+        client.send(Event::new()).unwrap();
+        client.close_with_retry(2)
+    });
+
+    let result = handle.await.unwrap();
+    assert!(
+        result.is_err(),
+        "helper retry should fail after max attempts"
+    );
 }
